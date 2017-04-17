@@ -19,10 +19,10 @@ def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, 
 
     clipped = tf.maximum(tf.minimum(gene_output, 1.0), 0.0)
 
-    image   = tf.concat(2, [nearest, bicubic, clipped, label])
+    image   = tf.concat([nearest, bicubic, clipped, label], 2)
 
     image = image[0:max_samples,:,:,:]
-    image = tf.concat(0, [image[i,:,:,:] for i in range(max_samples)])
+    image = tf.concat([image[i,:,:,:] for i in range(max_samples)], 0)
     image = td.sess.run(image)
 
     filename = 'batch%06d_%s.png' % (batch, suffix)
