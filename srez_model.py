@@ -469,7 +469,7 @@ def create_discriminator_loss(disc_real_output, disc_fake_output):
     # I.e. did we correctly identify the input as real or not?
 #    cross_entropy_real = tf.nn.sigmoid_cross_entropy_with_logits(logits = disc_real_output, labels = tf.ones_like(disc_real_output))
 #    disc_real_loss     = tf.reduce_mean(cross_entropy_real, name='disc_real_loss')
-    disc_real_loss = tf.reduce_mean(cross_entropy_real, name='disc_real_loss')
+    disc_real_loss = tf.reduce_mean(disc_real_output, name='disc_real_loss')
 #    cross_entropy_fake = tf.nn.sigmoid_cross_entropy_with_logits(logits = disc_fake_output, labels = tf.zeros_like(disc_fake_output))
 #    disc_fake_loss     = tf.reduce_mean(cross_entropy_fake, name='disc_fake_loss')
     disc_fake_loss = tf.reduce_mean(disc_fake_output, name='disc_fake_loss')

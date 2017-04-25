@@ -22,7 +22,7 @@ tf.app.flags.DEFINE_string('checkpoint_dir', 'checkpoint',
 tf.app.flags.DEFINE_integer('checkpoint_period', 10000,
                             "Number of batches in between checkpoints")
 
-tf.app.flags.DEFINE_integer('summary_dir', 'summary',
+tf.app.flags.DEFINE_string('summary_dir', 'summary',
                             "Diretory to save TensorBoard summaries")
 
 tf.app.flags.DEFINE_string('dataset', 'dataset',
@@ -71,7 +71,11 @@ def prepare_dirs(delete_train_dir=False):
     # Create checkpoint dir (do not delete anything)
     if not tf.gfile.Exists(FLAGS.checkpoint_dir):
         tf.gfile.MakeDirs(FLAGS.checkpoint_dir)
-    
+
+    # Create summary dir
+    if not tf.gfile.Exists(FLAGS.summary_dir):
+        tf.gfile.MakeDirs(FLAGS.summary_dir)
+        
     # Cleanup train dir
     if delete_train_dir:
         if tf.gfile.Exists(FLAGS.train_dir):
@@ -103,7 +107,7 @@ def setup_tensorflow():
     random.seed(FLAGS.random_seed)
     np.random.seed(FLAGS.random_seed)
 
-    summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
+    summary_writer = tf.summary.FileWriter(FLAGS.summary_dir, sess.graph)
 
     return sess, summary_writer
 
