@@ -22,6 +22,9 @@ tf.app.flags.DEFINE_string('checkpoint_dir', 'checkpoint',
 tf.app.flags.DEFINE_integer('checkpoint_period', 10000,
                             "Number of batches in between checkpoints")
 
+tf.app.flags.DEFINE_integer('summary_dir', 'summary',
+                            "Diretory to save TensorBoard summaries")
+
 tf.app.flags.DEFINE_string('dataset', 'dataset',
                            "Path to the dataset directory.")
 
@@ -173,6 +176,10 @@ def _train():
     (global_step, learning_rate, gene_minimize, disc_minimize, d_clip) = \
             srez_model.create_optimizers(gene_loss, gene_var_list,
                                          disc_loss, disc_var_list)
+    tf.summary.scalar('generator_loss', gene_loss)
+    tf.summary.scalar('discriminator_real_loss', disc_real_loss)
+    tf.summary.scalar('discriminator_fake_loss', disc_fake_loss)
+    tf.summary.scalar('discriminator_tot_loss', disc_loss)
 
     # Train model
     train_data = TrainData(locals())

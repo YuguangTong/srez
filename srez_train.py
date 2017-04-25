@@ -90,7 +90,8 @@ def train_model(train_data):
             print('Progress[%3d%%], ETA[%4dm], Batch [%4d], G_Loss[%3.3f], D_Real_Loss[%3.3f], D_Fake_Loss[%3.3f]' %
                   (int(100*elapsed/FLAGS.train_time), FLAGS.train_time - elapsed,
                    batch, gene_loss, disc_real_loss, disc_fake_loss))
-
+            batch_summaries = td.sess.run([summaries])
+            td.summary_writer.add_summary(batch_summaries, batch)
             # Finished?            
             current_progress = elapsed / FLAGS.train_time
             if current_progress >= 1.0:
