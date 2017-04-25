@@ -168,9 +168,9 @@ def _train():
     gene_loss = srez_model.create_generator_loss(disc_fake_output, gene_output, train_features)
     disc_real_loss, disc_fake_loss = \
                      srez_model.create_discriminator_loss(disc_real_output, disc_fake_output)
-    disc_loss = tf.add(disc_real_loss, disc_fake_loss, name='disc_loss')
+    disc_loss = tf.subtract(disc_real_loss, disc_fake_loss, name='disc_loss')
     
-    (global_step, learning_rate, gene_minimize, disc_minimize) = \
+    (global_step, learning_rate, gene_minimize, disc_minimize, d_clip) = \
             srez_model.create_optimizers(gene_loss, gene_var_list,
                                          disc_loss, disc_var_list)
 
