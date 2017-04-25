@@ -20,6 +20,9 @@ def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, 
     clipped = tf.maximum(tf.minimum(gene_output, 1.0), 0.0)
 
     image   = tf.concat([nearest, bicubic, clipped, label], 2)
+    image_op = tf.summary.image('generator output', image, max_samples)
+    image_summary = td.sess.run(image_op)
+    td.summary_writer.add_summary(image_summary, batch)
 
     image = image[0:max_samples,:,:,:]
     image = tf.concat([image[i,:,:,:] for i in range(max_samples)], 0)

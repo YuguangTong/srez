@@ -43,6 +43,9 @@ tf.app.flags.DEFINE_float('learning_beta1', 0.5,
 tf.app.flags.DEFINE_float('learning_rate_start', 0.00020,
                           "Starting learning rate used for AdamOptimizer")
 
+tf.app.flags.DEFINE_float('train_noise', 0.03,
+                          "level of Gaussian noise added to training images")
+
 tf.app.flags.DEFINE_integer('learning_rate_half_life', 5000,
                             "Number of batches until learning rate is halved")
 
@@ -162,7 +165,7 @@ def _train():
     test_features,  test_labels  = srez_input.setup_inputs(sess, test_filenames)
 
     # Add some noise during training (think denoising autoencoders)
-    noise_level = .03
+    noise_level = FLAGS.train_noise
     noisy_train_features = train_features + \
                            tf.random_normal(train_features.get_shape(), stddev=noise_level)
 
