@@ -70,6 +70,24 @@ tf.app.flags.DEFINE_string('train_dir', 'train',
 tf.app.flags.DEFINE_integer('train_time', 200,
                             "Time in minutes to train the model")
 
+tf.app.flags.DEFINE_integer('optimizer', 1,
+                            "Which optimizer to use: RMSprop(1) or Adam (0)?")
+
+tf.app.flags.DEFINE_integer('loss_func', 0,
+                            "Which loss function to use: DCGAN(1) or WGAN (0)?")
+
+tf.app.flags.DEFINE_integer('weigh_clip', 1,
+                            "Perform weigh clipping(1) or not(0)?")
+
+tf.app.flags.DEFINE_integer('batch_norm', 1,
+                            "Perform batch normalization in the discriminator (1) or not(0)?")
+
+tf.app.flags.DEFINE_integer('output_image', 1,
+                            "Present images from all methods (0) or only present images from the generator (1)")
+
+tf.app.flags.DEFINE_integer('LAMBDA', 0,
+                            "Gradient penalty lambda hyperparameter in improved WGAN (not implemented yet)")
+
 def prepare_dirs(delete_train_dir=False):
     # Create checkpoint dir (do not delete anything)
     if not tf.gfile.Exists(FLAGS.checkpoint_dir):
@@ -178,11 +196,16 @@ def _train():
     gene_loss = srez_model.create_generator_loss(disc_fake_output, gene_output, train_features)
     disc_real_loss, disc_fake_loss = \
                      srez_model.create_discriminator_loss(disc_real_output, disc_fake_output)
-    disc_loss = tf.subtract(disc_real_loss, disc_fake_loss, name='disc_loss')
+    if FLAGS.loss_func:
+        # for DCGAN
+        disc_loss = tf.add(disc_real_loss, disc_fake_loss, name='disc_loss')
+    else:
+        # for WGAN
+        disc_loss = tf.subtract(disc_real_loss, disc_fake_loss, name='disc_loss')
     
     (global_step, learning_rate, gene_minimize, disc_minimize, d_clip) = \
-            srez_model.create_optimizers(gene_loss, gene_var_list,
-                                         disc_loss, disc_var_list)
+            srez_model.create_optimizers(gene_loss, gene_var_list, disc_loss, disc_var_list)
+
     tf.summary.scalar('generator_loss', gene_loss)
     tf.summary.scalar('discriminator_real_loss', disc_real_loss)
     tf.summary.scalar('discriminator_fake_loss', disc_fake_loss)

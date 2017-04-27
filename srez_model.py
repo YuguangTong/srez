@@ -335,16 +335,19 @@ def _discriminator_model(sess, features, disc_input):
         stddev_factor = 2.0
 
         model.add_conv2d(nunits, mapsize=mapsize, stride=2, stddev_factor=stddev_factor)
-        model.add_batch_norm()
+        if FLAGS.batch_norm:
+            model.add_batch_norm()
         model.add_relu()
 
     # Finalization a la "all convolutional net"
     model.add_conv2d(nunits, mapsize=mapsize, stride=1, stddev_factor=stddev_factor)
-    model.add_batch_norm()
+    if FLAGS.batch_norm:
+        model.add_batch_norm()
     model.add_relu()
 
     model.add_conv2d(nunits, mapsize=1, stride=1, stddev_factor=stddev_factor)
-    model.add_batch_norm()
+    if FLAGS.batch_norm:
+        model.add_batch_norm()
     model.add_relu()
 
     # Linearly map to real/fake and return average score
@@ -449,9 +452,13 @@ def _downscale(images, K):
 
 def create_generator_loss(disc_output, gene_output, features):
     # I.e. did we fool the discriminator?
-#    cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(logits = disc_output, labels = tf.ones_like(disc_output)) 
-#    gene_ce_loss  = tf.reduce_mean(cross_entropy, name='gene_ce_loss')
-    gene_ce_loss = tf.reduce_mean(disc_output, name='gene_ce_loss')
+    if FLAGS.loss_func:
+        # DCGAN loss function
+        cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(logits = disc_output, labels = tf.ones_like(disc_output)) 
+        gene_ce_loss  = tf.reduce_mean(cross_entropy, name='gene_ce_loss')
+    else:
+        # WGAN loss function
+        gene_ce_loss = tf.reduce_mean(disc_output, name='gene_ce_loss')
 
     # I.e. does the result look like the feature?
     K = int(gene_output.get_shape()[1])//int(features.get_shape()[1])
@@ -467,12 +474,18 @@ def create_generator_loss(disc_output, gene_output, features):
 
 def create_discriminator_loss(disc_real_output, disc_fake_output):
     # I.e. did we correctly identify the input as real or not?
-#    cross_entropy_real = tf.nn.sigmoid_cross_entropy_with_logits(logits = disc_real_output, labels = tf.ones_like(disc_real_output))
-#    disc_real_loss     = tf.reduce_mean(cross_entropy_real, name='disc_real_loss')
-    disc_real_loss = tf.reduce_mean(disc_real_output, name='disc_real_loss')
-#    cross_entropy_fake = tf.nn.sigmoid_cross_entropy_with_logits(logits = disc_fake_output, labels = tf.zeros_like(disc_fake_output))
-#    disc_fake_loss     = tf.reduce_mean(cross_entropy_fake, name='disc_fake_loss')
-    disc_fake_loss = tf.reduce_mean(disc_fake_output, name='disc_fake_loss')
+    
+    if FLAGS.loss_func:
+        # DCGAN loss function
+        cross_entropy_real = tf.nn.sigmoid_cross_entropy_with_logits(logits = disc_real_output, labels = tf.ones_like(disc_real_output))
+        disc_real_loss     = tf.reduce_mean(cross_entropy_real, name='disc_real_loss')
+        cross_entropy_fake = tf.nn.sigmoid_cross_entropy_with_logits(logits = disc_fake_output, labels = tf.zeros_like(disc_fake_output))
+        disc_fake_loss     = tf.reduce_mean(cross_entropy_fake, name='disc_fake_loss')
+    else:
+        # WGAN loss function
+        disc_real_loss = tf.reduce_mean(disc_real_output, name='disc_real_loss')
+        disc_fake_loss = tf.reduce_mean(disc_fake_output, name='disc_fake_loss')
+        
     return disc_real_loss, disc_fake_loss
 
 def create_optimizers(gene_loss, gene_var_list,
@@ -481,18 +494,18 @@ def create_optimizers(gene_loss, gene_var_list,
     global_step    = tf.Variable(0, dtype=tf.int64,   trainable=False, name='global_step')
     learning_rate  = tf.placeholder(dtype=tf.float32, name='learning_rate')
     
-#    gene_opti = tf.train.AdamOptimizer(learning_rate=learning_rate,
-#                                       beta1=FLAGS.learning_beta1,
-#                                       name='gene_optimizer')
-#    disc_opti = tf.train.AdamOptimizer(learning_rate=learning_rate,
-#                                       beta1=FLAGS.learning_beta1,
-#                                       name='disc_optimizer')
-    gene_opti = tf.train.RMSPropOptimizer(
-        learning_rate=learning_rate,
-        name='gene_optimizer')
-    disc_opti = tf.train.RMSPropOptimizer(
-        learning_rate=learning_rate,
-        name='disc_optimizer')
+    # choose an optimizer
+    if FLAGS.optimizer:
+        gene_opti = tf.train.RMSPropOptimizer(learning_rate=learning_rate,
+            name='gene_optimizer')
+        disc_opti = tf.train.RMSPropOptimizer(learning_rate=learning_rate,
+            name='disc_optimizer')
+    else:
+        gene_opti = tf.train.AdamOptimizer(learning_rate=learning_rate,beta1=FLAGS.learning_beta1,
+                                          name='gene_optimizer')
+        disc_opti = tf.train.AdamOptimizer(learning_rate=learning_rate,beta1=FLAGS.learning_beta1,
+                                          name='disc_optimizer')
+    
 
     gene_minimize = gene_opti.minimize(gene_loss, var_list=gene_var_list, name='gene_loss_minimize', global_step=global_step)
     
