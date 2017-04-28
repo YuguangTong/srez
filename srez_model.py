@@ -451,7 +451,7 @@ def create_generator_loss(disc_output, gene_output, features):
     # I.e. did we fool the discriminator?
 #    cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(logits = disc_output, labels = tf.ones_like(disc_output)) 
 #    gene_ce_loss  = tf.reduce_mean(cross_entropy, name='gene_ce_loss')
-    gene_ce_loss = tf.reduce_mean(disc_output, name='gene_ce_loss')
+    gene_ce_loss = tf.reduce_mean(-disc_output, name='gene_ce_loss')
 
     # I.e. does the result look like the feature?
     K = int(gene_output.get_shape()[1])//int(features.get_shape()[1])
