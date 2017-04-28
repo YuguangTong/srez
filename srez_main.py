@@ -196,6 +196,7 @@ def _train():
     gene_loss = srez_model.create_generator_loss(disc_fake_output, gene_output, train_features)
     disc_real_loss, disc_fake_loss = \
                      srez_model.create_discriminator_loss(disc_real_output, disc_fake_output)
+
     if FLAGS.loss_func:
         # for DCGAN
         disc_loss = tf.add(disc_real_loss, disc_fake_loss, name='disc_loss')
@@ -210,6 +211,7 @@ def _train():
     tf.summary.scalar('discriminator_real_loss', disc_real_loss)
     tf.summary.scalar('discriminator_fake_loss', disc_fake_loss)
     tf.summary.scalar('discriminator_tot_loss', disc_loss)
+
 
     # Train model
     train_data = TrainData(locals())

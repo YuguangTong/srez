@@ -452,6 +452,7 @@ def _downscale(images, K):
 
 def create_generator_loss(disc_output, gene_output, features):
     # I.e. did we fool the discriminator?
+
     if FLAGS.loss_func:
         # DCGAN loss function
         cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(logits = disc_output, labels = tf.ones_like(disc_output)) 
@@ -459,6 +460,7 @@ def create_generator_loss(disc_output, gene_output, features):
     else:
         # WGAN loss function
         gene_ce_loss = tf.reduce_mean(disc_output, name='gene_ce_loss')
+
 
     # I.e. does the result look like the feature?
     K = int(gene_output.get_shape()[1])//int(features.get_shape()[1])
@@ -474,6 +476,7 @@ def create_generator_loss(disc_output, gene_output, features):
 
 def create_discriminator_loss(disc_real_output, disc_fake_output):
     # I.e. did we correctly identify the input as real or not?
+
     
     if FLAGS.loss_func:
         # DCGAN loss function
@@ -494,6 +497,7 @@ def create_optimizers(gene_loss, gene_var_list,
     global_step    = tf.Variable(0, dtype=tf.int64,   trainable=False, name='global_step')
     learning_rate  = tf.placeholder(dtype=tf.float32, name='learning_rate')
     
+
     # choose an optimizer
     if FLAGS.optimizer:
         gene_opti = tf.train.RMSPropOptimizer(learning_rate=learning_rate,
