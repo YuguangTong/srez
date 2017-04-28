@@ -201,12 +201,12 @@ def _train():
         disc_loss = tf.add(disc_real_loss, disc_fake_loss, name='disc_loss')
     else:
         # for WGAN
-        disc_loss = tf.subtract(disc_real_loss, disc_fake_loss, name='disc_loss')
+        disc_loss = tf.subtract(disc_fake_loss, disc_real_loss, name='disc_loss')
     
     if FLAGS.LAMBDA > 0:
         slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
         gradient_penalty = tf.reduce_mean((slopes-1.)**2)
-        disc_loss -= FLAGS.LAMBDA*gradient_penalty
+        disc_loss += FLAGS.LAMBDA*gradient_penalty
 
     (global_step, learning_rate, gene_minimize, disc_minimize, d_clip) = \
             srez_model.create_optimizers(gene_loss, gene_var_list, disc_loss, disc_var_list)

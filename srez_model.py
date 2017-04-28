@@ -482,8 +482,8 @@ def create_generator_loss(disc_output, gene_output, features):
     
     gene_l1_loss  = tf.reduce_mean(tf.abs(downscaled - features), name='gene_l1_loss')
 
-    gene_loss     = tf.add((1.0 - FLAGS.gene_l1_factor) * (gene_ce_loss),
-                           FLAGS.gene_l1_factor * gene_l1_loss, name='gene_loss')
+    gene_loss     = tf.add((1.0 - FLAGS.gene_l1_factor) * (- gene_ce_loss),
+                           FLAGS.gene_l1_factor * (gene_l1_loss), name='gene_loss')
     # gene_loss     = - gene_ce_loss
 
     return gene_loss
