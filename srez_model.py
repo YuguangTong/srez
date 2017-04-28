@@ -433,9 +433,22 @@ def create_model(sess, features, labels):
             
         disc_fake_output, _ = _discriminator_model(sess, features, gene_output)
 
+        if FLAGS.LAMBDA > 0:
+            alpha = tf.random_uniform(shape=[FLAGS.batch_size,1],minval=0.,maxval=1.)
+            image_shape = disc_real_input.get_shape()[1]*disc_real_input.get_shape()[2]*disc_real_input.get_shape()[3]
+            image_shape = int(image_shape)
+            real_flatten = tf.reshape(disc_real_input,[FLAGS.batch_size,image_shape])
+            fake_flatten = tf.reshape(gene_output,[FLAGS.batch_size,image_shape])
+            interpolates = alpha*real_flatten + (1-alpha)*fake_flatten
+            interpolates_reshaped = tf.reshape(interpolates,gene_output.get_shape())
+            disc_inter_output, _ = _discriminator_model(sess, features, interpolates_reshaped)
+            gradients = tf.gradients(tf.reshape(disc_inter_output,[-1]), [interpolates])[0]
+        else:
+            gradients = 0
+
     return [gene_minput,      gene_moutput,
             gene_output,      gene_var_list,
-            disc_real_output, disc_fake_output, disc_var_list]
+            disc_real_output, disc_fake_output, gradients, disc_var_list]
 
 def _downscale(images, K):
     """Differentiable image downscaling by a factor of K"""
@@ -469,9 +482,10 @@ def create_generator_loss(disc_output, gene_output, features):
     
     gene_l1_loss  = tf.reduce_mean(tf.abs(downscaled - features), name='gene_l1_loss')
 
-    gene_loss     = tf.add((1.0 - FLAGS.gene_l1_factor) * gene_ce_loss,
+    gene_loss     = tf.add((1.0 - FLAGS.gene_l1_factor) * (gene_ce_loss),
                            FLAGS.gene_l1_factor * gene_l1_loss, name='gene_loss')
-    
+    # gene_loss     = - gene_ce_loss
+
     return gene_loss
 
 def create_discriminator_loss(disc_real_output, disc_fake_output):

@@ -70,22 +70,22 @@ tf.app.flags.DEFINE_string('train_dir', 'train',
 tf.app.flags.DEFINE_integer('train_time', 200,
                             "Time in minutes to train the model")
 
-tf.app.flags.DEFINE_integer('optimizer', 1,
+tf.app.flags.DEFINE_integer('optimizer', 0,
                             "Which optimizer to use: RMSprop(1) or Adam (0)?")
 
 tf.app.flags.DEFINE_integer('loss_func', 0,
                             "Which loss function to use: DCGAN(1) or WGAN (0)?")
 
-tf.app.flags.DEFINE_integer('weigh_clip', 1,
+tf.app.flags.DEFINE_integer('weigh_clip', 0,
                             "Perform weigh clipping(1) or not(0)?")
 
-tf.app.flags.DEFINE_integer('batch_norm', 1,
+tf.app.flags.DEFINE_integer('batch_norm', 0,
                             "Perform batch normalization in the discriminator (1) or not(0)?")
 
 tf.app.flags.DEFINE_integer('output_image', 1,
                             "Present images from all methods (0) or only present images from the generator (1)")
 
-tf.app.flags.DEFINE_integer('LAMBDA', 0,
+tf.app.flags.DEFINE_integer('LAMBDA', 10,
                             "Gradient penalty lambda hyperparameter in improved WGAN (not implemented yet)")
 
 def prepare_dirs(delete_train_dir=False):
@@ -187,11 +187,10 @@ def _train():
     noisy_train_features = train_features + \
                            tf.random_normal(train_features.get_shape(), stddev=noise_level)
 
-    # Create and initialize model
-    [gene_minput, gene_moutput,
-     gene_output, gene_var_list,
-     disc_real_output, disc_fake_output, disc_var_list] = \
+    [gene_minput, gene_moutput,gene_output, gene_var_list,
+     disc_real_output, disc_fake_output, gradients, disc_var_list] = \
             srez_model.create_model(sess, noisy_train_features, train_labels)
+
 
     gene_loss = srez_model.create_generator_loss(disc_fake_output, gene_output, train_features)
     disc_real_loss, disc_fake_loss = \
@@ -204,6 +203,11 @@ def _train():
         # for WGAN
         disc_loss = tf.subtract(disc_real_loss, disc_fake_loss, name='disc_loss')
     
+    if FLAGS.LAMBDA > 0:
+        slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
+        gradient_penalty = tf.reduce_mean((slopes-1.)**2)
+        disc_loss -= FLAGS.LAMBDA*gradient_penalty
+
     (global_step, learning_rate, gene_minimize, disc_minimize, d_clip) = \
             srez_model.create_optimizers(gene_loss, gene_var_list, disc_loss, disc_var_list)
 
