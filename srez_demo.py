@@ -9,10 +9,11 @@ FLAGS = tf.app.flags.FLAGS
 
 def demo1(sess):
     """Demo based on images dumped during training"""
-
+    #print('train_dir={}'.format(FLAGS.train_dir))
     # Get images that were dumped during training
     filenames = tf.gfile.ListDirectory(FLAGS.train_dir)
     filenames = sorted(filenames)
+    #print('filenames={}'.format(filenames))
     filenames = [os.path.join(FLAGS.train_dir, f) for f in filenames if f[-4:]=='.png']
 
     assert len(filenames) >= 1

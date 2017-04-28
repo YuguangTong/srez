@@ -34,8 +34,17 @@ tf.app.flags.DEFINE_float('epsilon', 1e-8,
 tf.app.flags.DEFINE_string('run', 'demo',
                             "Which operation to run. [demo|train]")
 
+tf.app.flags.DEFINE_string('loss', 'gan',
+                           "which loss to run. [gan | wgan | wgangp]")
+
+tf.app.flags.DEFINE_float('lambda_', 10.,
+                          "Gradient penalty lambda hyperparameter")
+
 tf.app.flags.DEFINE_float('gene_l1_factor', .90,
                           "Multiplier for generator L1 loss term")
+
+tf.app.flags.DEFINE_string('optimizer', 'rmsprop',
+                           "Which optimizer to use. [rmsprop | adam]")
 
 tf.app.flags.DEFINE_float('learning_beta1', 0.5,
                           "Beta1 parameter used for AdamOptimizer")
@@ -115,6 +124,11 @@ def setup_tensorflow():
     return sess, summary_writer
 
 def _demo():
+    sess = None
+    # Execute demo
+    srez_demo.demo1(sess)
+    return
+    
     # Load checkpoint
     if not tf.gfile.IsDirectory(FLAGS.checkpoint_dir):
         raise FileNotFoundError("Could not find folder `%s'" % (FLAGS.checkpoint_dir,))
@@ -129,10 +143,13 @@ def _demo():
     features, labels = srez_input.setup_inputs(sess, filenames)
 
     # Create and initialize model
-    [gene_minput, gene_moutput,
+    
+    [gene_loss, disc_loss,
+     disc_real_loss, disc_fake_loss,
+     gene_minput, gene_moutput,
      gene_output, gene_var_list,
-     disc_real_output, disc_fake_output, disc_var_list] = \
-            srez_model.create_model(sess, features, labels)
+     disc_real_output, disc_fake_output,
+     disc_var_list] = srez_model.create_model(sess, features, labels)
 
     # Restore variables from checkpoint
     saver = tf.train.Saver()
@@ -170,22 +187,20 @@ def _train():
                            tf.random_normal(train_features.get_shape(), stddev=noise_level)
 
     # Create and initialize model
-    [gene_minput, gene_moutput,
+    [gene_loss, disc_loss,
+     disc_real_loss, disc_fake_loss,
+     gene_minput, gene_moutput,
      gene_output, gene_var_list,
-     disc_real_output, disc_fake_output, disc_var_list] = \
-            srez_model.create_model(sess, noisy_train_features, train_labels)
+     disc_real_output, disc_fake_output,
+     disc_var_list] = srez_model.create_model(
+         sess, train_features, train_labels)
 
-    gene_loss = srez_model.create_generator_loss(disc_fake_output, gene_output, train_features)
-    disc_real_loss, disc_fake_loss = \
-                     srez_model.create_discriminator_loss(disc_real_output, disc_fake_output)
-    disc_loss = tf.subtract(disc_fake_loss, disc_real_loss, name='disc_loss')
-    
     (global_step, learning_rate, gene_minimize, disc_minimize, d_clip) = \
             srez_model.create_optimizers(gene_loss, gene_var_list,
                                          disc_loss, disc_var_list)
     tf.summary.scalar('generator_loss', gene_loss)
-    tf.summary.scalar('discriminator_real_loss', disc_real_loss)
-    tf.summary.scalar('discriminator_fake_loss', disc_fake_loss)
+#    tf.summary.scalar('discriminator_real_loss', disc_real_loss)
+#    tf.summary.scalar('discriminator_fake_loss', disc_fake_loss)
     tf.summary.scalar('discriminator_tot_loss', disc_loss)
 
     # Train model

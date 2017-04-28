@@ -1,5 +1,3 @@
-# trial run with d_loss = fake - real and g_loss = - fake
-
 # params
 RUNNUM=4
 SPERIOD=200
