@@ -53,6 +53,13 @@ class Model:
         self.outputs.append(out)
         return self
 
+    def add_layer_norm(self, scale=False):
+        with tf.variable_scope(self._get_layer_str()):
+            out = tf.contrib.layers.layer_norm(self.get_output(), scale=scale)
+        
+        self.outputs.append(out)
+        return self
+
     def add_flatten(self):
         """Transforms the output of this network to a 1D tensor"""
 
@@ -337,17 +344,26 @@ def _discriminator_model(sess, features, disc_input):
         model.add_conv2d(nunits, mapsize=mapsize, stride=2, stddev_factor=stddev_factor)
         if FLAGS.batch_norm:
             model.add_batch_norm()
+        else:
+            model.add_layer_norm()
+
         model.add_relu()
 
     # Finalization a la "all convolutional net"
     model.add_conv2d(nunits, mapsize=mapsize, stride=1, stddev_factor=stddev_factor)
     if FLAGS.batch_norm:
         model.add_batch_norm()
+    else:
+        model.add_layer_norm()
+
     model.add_relu()
 
     model.add_conv2d(nunits, mapsize=1, stride=1, stddev_factor=stddev_factor)
     if FLAGS.batch_norm:
         model.add_batch_norm()
+    else:
+        model.add_layer_norm()
+
     model.add_relu()
 
     # Linearly map to real/fake and return average score
@@ -442,7 +458,7 @@ def create_model(sess, features, labels):
             interpolates = alpha*real_flatten + (1-alpha)*fake_flatten
             interpolates_reshaped = tf.reshape(interpolates,gene_output.get_shape())
             disc_inter_output, _ = _discriminator_model(sess, features, interpolates_reshaped)
-            gradients = tf.gradients(tf.reshape(disc_inter_output,[-1]), [interpolates])[0]
+            gradients = tf.gradients(disc_inter_output, [interpolates])[0]
         else:
             gradients = 0
 
@@ -482,9 +498,9 @@ def create_generator_loss(disc_output, gene_output, features):
     
     gene_l1_loss  = tf.reduce_mean(tf.abs(downscaled - features), name='gene_l1_loss')
 
-    gene_loss     = tf.add((1.0 - FLAGS.gene_l1_factor) * (- gene_ce_loss),
-                           FLAGS.gene_l1_factor * (gene_l1_loss), name='gene_loss')
-    # gene_loss     = - gene_ce_loss
+    gene_loss     = tf.add((1.0 - FLAGS.gene_l1_factor) * (gene_ce_loss),
+                           FLAGS.gene_l1_factor * gene_l1_loss, name='gene_loss')
+    # gene_loss = - gene_ce_loss
 
     return gene_loss
 
@@ -519,9 +535,9 @@ def create_optimizers(gene_loss, gene_var_list,
         disc_opti = tf.train.RMSPropOptimizer(learning_rate=learning_rate,
             name='disc_optimizer')
     else:
-        gene_opti = tf.train.AdamOptimizer(learning_rate=learning_rate,beta1=FLAGS.learning_beta1,
+        gene_opti = tf.train.AdamOptimizer(learning_rate=learning_rate,beta1=FLAGS.learning_beta1, beta2 =FLAGS.learning_beta2,
                                           name='gene_optimizer')
-        disc_opti = tf.train.AdamOptimizer(learning_rate=learning_rate,beta1=FLAGS.learning_beta1,
+        disc_opti = tf.train.AdamOptimizer(learning_rate=learning_rate,beta1=FLAGS.learning_beta1, beta2 =FLAGS.learning_beta2,
                                           name='disc_optimizer')
     
 

@@ -40,7 +40,10 @@ tf.app.flags.DEFINE_float('gene_l1_factor', .90,
 tf.app.flags.DEFINE_float('learning_beta1', 0.5,
                           "Beta1 parameter used for AdamOptimizer")
 
-tf.app.flags.DEFINE_float('learning_rate_start', 0.00020,
+tf.app.flags.DEFINE_float('learning_beta2', 0.9,
+                          "Beta1 parameter used for AdamOptimizer")
+
+tf.app.flags.DEFINE_float('learning_rate_start', 0.00010,
                           "Starting learning rate used for AdamOptimizer")
 
 tf.app.flags.DEFINE_float('train_noise', 0.03,
@@ -85,8 +88,8 @@ tf.app.flags.DEFINE_integer('batch_norm', 0,
 tf.app.flags.DEFINE_integer('output_image', 1,
                             "Present images from all methods (0) or only present images from the generator (1)")
 
-tf.app.flags.DEFINE_integer('LAMBDA', 10,
-                            "Gradient penalty lambda hyperparameter in improved WGAN (not implemented yet)")
+tf.app.flags.DEFINE_integer('LAMBDA', 2,
+                            "Gradient penalty lambda hyperparameter in improved WGAN")
 
 def prepare_dirs(delete_train_dir=False):
     # Create checkpoint dir (do not delete anything)
@@ -201,12 +204,12 @@ def _train():
         disc_loss = tf.add(disc_real_loss, disc_fake_loss, name='disc_loss')
     else:
         # for WGAN
-        disc_loss = tf.subtract(disc_fake_loss, disc_real_loss, name='disc_loss')
+        disc_loss = tf.subtract(disc_real_loss, disc_fake_loss, name='disc_loss')
     
     if FLAGS.LAMBDA > 0:
         slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
         gradient_penalty = tf.reduce_mean((slopes-1.)**2)
-        disc_loss += FLAGS.LAMBDA*gradient_penalty
+        disc_loss = tf.add(disc_loss, FLAGS.LAMBDA*gradient_penalty, name='disc_loss')
 
     (global_step, learning_rate, gene_minimize, disc_minimize, d_clip) = \
             srez_model.create_optimizers(gene_loss, gene_var_list, disc_loss, disc_var_list)
