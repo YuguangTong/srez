@@ -123,8 +123,8 @@ def train_model(train_data):
         if batch % FLAGS.summary_period == 0:
             # Show progress with test features
             feed_dict = {td.gene_minput: test_feature}
-            gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)
-            _summarize_progress(td, test_feature, test_label, batch, 'out')
+            # gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)
+            _summarize_progress(td, test_feature, test_label, batch, 'out', max_samples=td.max_samples)
             test_merged = tf.summary.merged_all(key='test_scalars')
             test_summaries = td.sess.run(test_merged, feed_dict=feed_dict)
             tf.summary.add_summary(test_summaries)
