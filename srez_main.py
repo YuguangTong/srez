@@ -43,7 +43,7 @@ tf.app.flags.DEFINE_float('learning_beta1', 0.5,
 tf.app.flags.DEFINE_float('learning_beta2', 0.9,
                           "Beta1 parameter used for AdamOptimizer")
 
-tf.app.flags.DEFINE_float('learning_rate_start', 0.00010,
+tf.app.flags.DEFINE_float('learning_rate_start', 0.00020,
                           "Starting learning rate used for AdamOptimizer")
 
 tf.app.flags.DEFINE_float('train_noise', 0.03,
@@ -73,23 +73,26 @@ tf.app.flags.DEFINE_string('train_dir', 'train',
 tf.app.flags.DEFINE_integer('train_time', 200,
                             "Time in minutes to train the model")
 
-tf.app.flags.DEFINE_integer('optimizer', 0,
-                            "Which optimizer to use: RMSprop(1) or Adam (0)?")
+tf.app.flags.DEFINE_string('optimizer', 'rmsprop',
+                            "Which optimizer to use: [rmsprop | adam]?")
 
-tf.app.flags.DEFINE_integer('loss_func', 0,
-                            "Which loss function to use: DCGAN(1) or WGAN (0)?")
+tf.app.flags.DEFINE_string('loss_func', 'wgangp',
+                            "Which loss function to use: [dcgan | wgan | wgangp]?")
 
 tf.app.flags.DEFINE_integer('weigh_clip', 0,
                             "Perform weigh clipping(1) or not(0)?")
 
-tf.app.flags.DEFINE_integer('batch_norm', 0,
-                            "Perform batch normalization in the discriminator (1) or not(0)?")
+tf.app.flags.DEFINE_string('critic_norm', 'layer',
+                            "Normalization in the discriminator: [batch|layer]?")
 
-tf.app.flags.DEFINE_integer('output_image', 1,
+tf.app.flags.DEFINE_integer('output_image', 0,
                             "Present images from all methods (0) or only present images from the generator (1)")
 
-tf.app.flags.DEFINE_integer('LAMBDA', 2,
+tf.app.flags.DEFINE_integer('LAMBDA', 10,
                             "Gradient penalty lambda hyperparameter in improved WGAN")
+
+tf.app.flags.DEFINE_string('gen_architect', 'resnet',
+                            "Artchitect of the generator: [resnet | deconv]")
 
 def prepare_dirs(delete_train_dir=False):
     # Create checkpoint dir (do not delete anything)
@@ -113,7 +116,7 @@ def prepare_dirs(delete_train_dir=False):
 
     filenames = tf.gfile.ListDirectory(FLAGS.dataset)
     filenames = sorted(filenames)
-    random.shuffle(filenames)
+    #random.shuffle(filenames)
     filenames = [os.path.join(FLAGS.dataset, f) for f in filenames]
 
     return filenames
@@ -176,8 +179,14 @@ def _train():
     all_filenames = prepare_dirs(delete_train_dir=True)
 
     # Separate training and test sets
-    train_filenames = all_filenames[:-FLAGS.test_vectors]
-    test_filenames  = all_filenames[-FLAGS.test_vectors:]
+    # train_filenames = all_filenames[:-FLAGS.test_vectors]
+    # test_filenames  = all_filenames[-FLAGS.test_vectors:]
+    determined_test = [73883-1, 36510-1, 132301-1, 57264-1, 152931-1, 93861-1,
+    124938-1, 79512-1, 106152-1, 127384-1, 134028-1, 67874-1,
+    10613-1, 110251-1, 198694-1, 100990-1]
+    all_filenames = np.array(all_filenames)
+    train_filenames = list(np.delete(all_filenames, determined_test))
+    test_filenames = list(all_filenames[determined_test])
 
     # TBD: Maybe download dataset here
 
@@ -199,14 +208,15 @@ def _train():
     disc_real_loss, disc_fake_loss = \
                      srez_model.create_discriminator_loss(disc_real_output, disc_fake_output)
 
-    if FLAGS.loss_func:
+    if FLAGS.loss_func == 'dcgan':
         # for DCGAN
         disc_loss = tf.add(disc_real_loss, disc_fake_loss, name='disc_loss')
-    else:
+    elif FLAGS.loss_func == 'wgan':
         # for WGAN
         disc_loss = tf.subtract(disc_real_loss, disc_fake_loss, name='disc_loss')
-    
-    if FLAGS.LAMBDA > 0:
+    elif FLAGS.loss_func == 'wgangp':
+        # for WGANGP
+        disc_loss = tf.subtract(disc_real_loss, disc_fake_loss)
         slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
         gradient_penalty = tf.reduce_mean((slopes-1.)**2)
         disc_loss = tf.add(disc_loss, FLAGS.LAMBDA*gradient_penalty, name='disc_loss')

@@ -342,26 +342,26 @@ def _discriminator_model(sess, features, disc_input):
         stddev_factor = 2.0
 
         model.add_conv2d(nunits, mapsize=mapsize, stride=2, stddev_factor=stddev_factor)
-        if FLAGS.batch_norm:
+        if FLAGS.critic_norm == 'batch':
             model.add_batch_norm()
-        else:
+        elif FLAGS.critic_norm == 'layer':
             model.add_layer_norm()
 
         model.add_relu()
 
     # Finalization a la "all convolutional net"
     model.add_conv2d(nunits, mapsize=mapsize, stride=1, stddev_factor=stddev_factor)
-    if FLAGS.batch_norm:
+    if FLAGS.critic_norm == 'batch':
         model.add_batch_norm()
-    else:
+    elif FLAGS.critic_norm == 'layer':
         model.add_layer_norm()
 
     model.add_relu()
 
     model.add_conv2d(nunits, mapsize=1, stride=1, stddev_factor=stddev_factor)
-    if FLAGS.batch_norm:
+    if FLAGS.critic_norm == 'batch':
         model.add_batch_norm()
-    else:
+    elif FLAGS.critic_norm == 'layer':
         model.add_layer_norm()
 
     model.add_relu()
@@ -387,20 +387,29 @@ def _generator_model(sess, features, labels, channels):
     # See Arxiv 1603.05027
     model = Model('GEN', features)
 
-    for ru in range(len(res_units)-1):
-        nunits  = res_units[ru]
+    if FLAGS.gen_architect == 'resnet':
+        for ru in range(len(res_units)-1):
+            nunits  = res_units[ru]
 
-        for j in range(2):
-            model.add_residual_block(nunits, mapsize=mapsize)
+            for j in range(2):
+                model.add_residual_block(nunits, mapsize=mapsize)
 
-        # Spatial upscale (see http://distill.pub/2016/deconv-checkerboard/)
-        # and transposed convolution
-        model.add_upscale()
-        
-        model.add_batch_norm()
-        model.add_relu()
-        model.add_conv2d_transpose(nunits, mapsize=mapsize, stride=1, stddev_factor=1.)
+            # Spatial upscale (see http://distill.pub/2016/deconv-checkerboard/)
+            # and transposed convolution
+            model.add_upscale()
+            
+            model.add_batch_norm()
+            model.add_relu()
+            model.add_conv2d_transpose(nunits, mapsize=mapsize, stride=1, stddev_factor=1.)
 
+    elif FLAGS.gen_architect == 'deconv':
+        for ru in range(len(res_units)-1):
+            nunits  = res_units[ru]
+            model.add_batch_norm()
+            model.add_relu()
+            model.add_conv2d_transpose(nunits, mapsize=mapsize, stride=2, stddev_factor=1.)
+
+            
     # Finalization a la "all convolutional net"
     nunits = res_units[-1]
     model.add_conv2d(nunits, mapsize=mapsize, stride=1, stddev_factor=2.)
@@ -482,7 +491,7 @@ def _downscale(images, K):
 def create_generator_loss(disc_output, gene_output, features):
     # I.e. did we fool the discriminator?
 
-    if FLAGS.loss_func:
+    if FLAGS.loss_func == 'dcgan':
         # DCGAN loss function
         cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(logits = disc_output, labels = tf.ones_like(disc_output)) 
         gene_ce_loss  = tf.reduce_mean(cross_entropy, name='gene_ce_loss')
@@ -508,7 +517,8 @@ def create_discriminator_loss(disc_real_output, disc_fake_output):
     # I.e. did we correctly identify the input as real or not?
 
     
-    if FLAGS.loss_func:
+    if FLAGS.loss_func == 'dcgan':
+        
         # DCGAN loss function
         cross_entropy_real = tf.nn.sigmoid_cross_entropy_with_logits(logits = disc_real_output, labels = tf.ones_like(disc_real_output))
         disc_real_loss     = tf.reduce_mean(cross_entropy_real, name='disc_real_loss')
@@ -529,12 +539,12 @@ def create_optimizers(gene_loss, gene_var_list,
     
 
     # choose an optimizer
-    if FLAGS.optimizer:
+    if FLAGS.optimizer == 'rmsprop':
         gene_opti = tf.train.RMSPropOptimizer(learning_rate=learning_rate,
             name='gene_optimizer')
         disc_opti = tf.train.RMSPropOptimizer(learning_rate=learning_rate,
             name='disc_optimizer')
-    else:
+    elif FLAGS.optimizer == 'adam':
         gene_opti = tf.train.AdamOptimizer(learning_rate=learning_rate,beta1=FLAGS.learning_beta1, beta2 =FLAGS.learning_beta2,
                                           name='gene_optimizer')
         disc_opti = tf.train.AdamOptimizer(learning_rate=learning_rate,beta1=FLAGS.learning_beta1, beta2 =FLAGS.learning_beta2,

@@ -6,7 +6,7 @@ import time
 
 FLAGS = tf.app.flags.FLAGS
 
-def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, max_samples=8):
+def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, max_samples=12):
     td = train_data
 
     size = [label.shape[1], label.shape[2]]
@@ -24,25 +24,26 @@ def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, 
     image_summary = td.sess.run(image_op)
     td.summary_writer.add_summary(image_summary, batch)
 
-    if FLAGS.output_image:
+    # if FLAGS.output_image:
         # Only present the generator output
-        clipped_image = clipped[0:max_samples,:,:,:]
-        image_gen_1 = tf.concat([clipped_image[i,:,:,:] for i in range(int(max_samples/2))], 1)
-        image_gen_2 = tf.concat([clipped_image[i,:,:,:] for i in range(int(max_samples/2),max_samples,1)], 1)
-        image_gen = tf.concat([image_gen_1,image_gen_2],0)
-        image_gen = td.sess.run(image_gen)
-        filename_gen = 'gen_batch%06d_%s.png' % (batch, suffix)
-        filename_gen = os.path.join(FLAGS.train_dir, filename_gen)
-        scipy.misc.toimage(image_gen, cmin=0., cmax=1.).save(filename_gen)
-        print("    Saved %s" % (filename_gen,))
-    else:
-        image = image[0:max_samples,:,:,:]
-        image = tf.concat([image[i,:,:,:] for i in range(max_samples)], 0)
-        image = td.sess.run(image)
-        filename = 'batch%06d_%s.png' % (batch, suffix)
-        filename = os.path.join(FLAGS.train_dir, filename)
-        scipy.misc.toimage(image, cmin=0., cmax=1.).save(filename)
-        print("    Saved %s" % (filename,))
+    clipped_image = clipped[0:max_samples,:,:,:]
+    image_gen_1 = tf.concat([clipped_image[i,:,:,:] for i in range(int(max_samples/3))], 1)
+    image_gen_2 = tf.concat([clipped_image[i,:,:,:] for i in range(int(max_samples/3),int(max_samples*2/3),1)], 1)
+    image_gen_3 = tf.concat([clipped_image[i,:,:,:] for i in range(int(max_samples*2/3),max_samples,1)], 1)
+    image_gen = tf.concat([image_gen_1,image_gen_2,image_gen_3],0)
+    image_gen = td.sess.run(image_gen)
+    filename_gen = 'gen_batch%06d_%s_s.png' % (batch, suffix)
+    filename_gen = os.path.join(FLAGS.train_dir, filename_gen)
+    scipy.misc.toimage(image_gen, cmin=0., cmax=1.).save(filename_gen)
+    print("    Saved %s" % (filename_gen,))
+    # else:
+    image = image[0:max_samples,:,:,:]
+    image = tf.concat([image[i,:,:,:] for i in range(max_samples)], 0)
+    image = td.sess.run(image)
+    filename = 'batch%06d_%s_l.png' % (batch, suffix)
+    filename = os.path.join(FLAGS.train_dir, filename)
+    scipy.misc.toimage(image, cmin=0., cmax=1.).save(filename)
+    print("    Saved %s" % (filename,))
 
 
 def _save_checkpoint(train_data, batch):
