@@ -193,9 +193,11 @@ def _train():
     # Setup async input queues
     train_features, train_labels = srez_input.setup_inputs(sess, train_filenames)
 #     test_features,  test_labels  = srez_input.setup_inputs(sess, test_filenames)
-    test_labels = np.load('testset_label.npy')
+    test_labels_np = np.load('testset_label.npy')
+    test_labels = np.placeholder(tf.float32, [16, 64, 64, 3])
     test_features = tf.image.resize_image(test_labels, [16, 16])
-    test_features = sess.run(test_features)
+    test_features, test_labels = sess.run(
+        [test_features, test_labels], feed_dict={test_labels: test_labels_np})
 
     # Add some noise during training (think denoising autoencoders)
     noise_level = FLAGS.train_noise
