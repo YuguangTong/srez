@@ -186,13 +186,16 @@ def _train():
     10613-1, 110251-1, 198694-1, 100990-1]
     all_filenames = np.array(all_filenames)
     train_filenames = list(np.delete(all_filenames, determined_test))
-    test_filenames = list(all_filenames[determined_test])
+#     test_filenames = list(all_filenames[determined_test])
 
     # TBD: Maybe download dataset here
 
     # Setup async input queues
     train_features, train_labels = srez_input.setup_inputs(sess, train_filenames)
-    test_features,  test_labels  = srez_input.setup_inputs(sess, test_filenames)
+#     test_features,  test_labels  = srez_input.setup_inputs(sess, test_filenames)
+    test_labels = np.load('testset_label.npy')
+    test_features = tf.image.resize_image(test_labels, [16, 16])
+    test_features = sess.run(test_features)
 
     # Add some noise during training (think denoising autoencoders)
     noise_level = FLAGS.train_noise
