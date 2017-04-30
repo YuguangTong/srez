@@ -103,7 +103,8 @@ def train_model(train_data):
     assert FLAGS.learning_rate_half_life % 10 == 0
 
     # Cache test features and labels (they are small)
-    test_feature, test_label = td.sess.run([td.test_features, td.test_labels])
+    #test_feature, test_label = td.sess.run([td.test_features, td.test_labels])
+    test_feature, test_label = td.test_features, td.test_labels
 
     while not done:
         batch += 1
