@@ -6,7 +6,7 @@ import time
 
 FLAGS = tf.app.flags.FLAGS
 
-def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, max_samples=12):
+def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, max_samples=10):
     td = train_data
 
     size = [label.shape[1], label.shape[2]]
@@ -27,10 +27,7 @@ def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, 
     # if FLAGS.output_image:
         # Only present the generator output
     clipped_image = clipped[0:max_samples,:,:,:]
-    image_gen_1 = tf.concat([clipped_image[i,:,:,:] for i in range(int(max_samples/3))], 1)
-    image_gen_2 = tf.concat([clipped_image[i,:,:,:] for i in range(int(max_samples/3),int(max_samples*2/3),1)], 1)
-    image_gen_3 = tf.concat([clipped_image[i,:,:,:] for i in range(int(max_samples*2/3),max_samples,1)], 1)
-    image_gen = tf.concat([image_gen_1,image_gen_2,image_gen_3],0)
+    image_gen = tf.concat([clipped_image[i,:,:,:] for i in range(max_samples)], 1)
     image_gen = td.sess.run(image_gen)
     filename_gen = 'gen_batch%06d_%s_s.png' % (batch, suffix)
     filename_gen = os.path.join(FLAGS.train_dir, filename_gen)
@@ -45,6 +42,24 @@ def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, 
     scipy.misc.toimage(image, cmin=0., cmax=1.).save(filename)
     print("    Saved %s" % (filename,))
 
+    ## compare the image quality to test images
+    real_image = label[0:max_samples,:,:,:]
+    #l1
+    l1_quality  = tf.reduce_mean(tf.reduce_sum(tf.abs(clipped_image - real_image), [1,2,3]), name='l1_quality')
+    # l1_quality = td.sess.run(l1_quality)
+
+    #MSE
+    mse_quality  = tf.reduce_mean(tf.reduce_sum(tf.square(clipped_image - real_image), [1,2,3]), name='mse_quality')
+    # mse_quality = td.sess.run(mse_quality)
+    
+    # print("   L1: %.2f, MSE: %.2f " % (l1_quality, mse_quality))
+
+    l1_tensor = tf.summary.scalar('L1_loss', l1_quality)
+    mse_tensor = tf.summary.scalar('Mean_square_error', mse_quality)
+
+    summaries = tf.summary.merge([l1_tensor,mse_tensor])
+    batch_summaries = td.sess.run(summaries)
+    td.summary_writer.add_summary(batch_summaries, batch)
 
 def _save_checkpoint(train_data, batch):
     td = train_data
@@ -77,7 +92,6 @@ def _save_checkpoint(train_data, batch):
 
 def train_model(train_data):
     td = train_data
-
     summaries = tf.summary.merge_all()
     td.sess.run(tf.global_variables_initializer())
 
@@ -105,8 +119,15 @@ def train_model(train_data):
             ops = [td.gene_minimize, td.disc_minimize, td.gene_loss, td.disc_real_loss, td.disc_fake_loss]
             _, _, gene_loss, disc_real_loss, disc_fake_loss = td.sess.run(ops, feed_dict=feed_dict)
 
+
+        if batch % FLAGS.summary_period == 0:
+            # Show progress with test features
+            feed_dict = {td.gene_minput: test_feature}
+            gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)
+            _summarize_progress(td, test_feature, test_label, gene_output, batch, 'out')
         
         if batch % 10 == 0:
+
             # Show we are alive
             elapsed = int(time.time() - start_time)/60
             print('Progress[%3d%%], ETA[%4dm], Batch [%4d], G_Loss[%3.3f], D_Real_Loss[%3.3f], D_Fake_Loss[%3.3f]' %
@@ -123,11 +144,7 @@ def train_model(train_data):
             if batch % FLAGS.learning_rate_half_life == 0:
                 lrval *= .5
 
-        if batch % FLAGS.summary_period == 0:
-            # Show progress with test features
-            feed_dict = {td.gene_minput: test_feature}
-            gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)
-            _summarize_progress(td, test_feature, test_label, gene_output, batch, 'out')
+
             
         if batch % FLAGS.checkpoint_period == 0:
             # Save checkpoint
