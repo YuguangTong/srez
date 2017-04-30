@@ -6,7 +6,7 @@ import time
 
 FLAGS = tf.app.flags.FLAGS
 
-def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, max_samples=10):
+def _summarize_progress(train_data, feature, label, batch, suffix, max_samples=10):
     td = train_data
 
     size = [label.shape[1], label.shape[2]]
@@ -24,42 +24,42 @@ def _summarize_progress(train_data, feature, label, gene_output, batch, suffix, 
     image_summary = td.sess.run(image_op)
     td.summary_writer.add_summary(image_summary, batch)
 
-    # if FLAGS.output_image:
-        # Only present the generator output
-    clipped_image = clipped[0:max_samples,:,:,:]
-    image_gen = tf.concat([clipped_image[i,:,:,:] for i in range(max_samples)], 1)
-    image_gen = td.sess.run(image_gen)
-    filename_gen = 'gen_batch%06d_%s_s.png' % (batch, suffix)
-    filename_gen = os.path.join(FLAGS.train_dir, filename_gen)
-    scipy.misc.toimage(image_gen, cmin=0., cmax=1.).save(filename_gen)
-    print("    Saved %s" % (filename_gen,))
-    # else:
-    image = image[0:max_samples,:,:,:]
-    image = tf.concat([image[i,:,:,:] for i in range(max_samples)], 0)
-    image = td.sess.run(image)
-    filename = 'batch%06d_%s_l.png' % (batch, suffix)
-    filename = os.path.join(FLAGS.train_dir, filename)
-    scipy.misc.toimage(image, cmin=0., cmax=1.).save(filename)
-    print("    Saved %s" % (filename,))
+#     # if FLAGS.output_image:
+#         # Only present the generator output
+#     clipped_image = clipped[0:max_samples,:,:,:]
+#     image_gen = tf.concat([clipped_image[i,:,:,:] for i in range(max_samples)], 1)
+#     image_gen = td.sess.run(image_gen)
+#     filename_gen = 'gen_batch%06d_%s_s.png' % (batch, suffix)
+#     filename_gen = os.path.join(FLAGS.train_dir, filename_gen)
+#     scipy.misc.toimage(image_gen, cmin=0., cmax=1.).save(filename_gen)
+#     print("    Saved %s" % (filename_gen,))
+#     # else:
+#     image = image[0:max_samples,:,:,:]
+#     image = tf.concat([image[i,:,:,:] for i in range(max_samples)], 0)
+#     image = td.sess.run(image)
+#     filename = 'batch%06d_%s_l.png' % (batch, suffix)
+#     filename = os.path.join(FLAGS.train_dir, filename)
+#     scipy.misc.toimage(image, cmin=0., cmax=1.).save(filename)
+#     print("    Saved %s" % (filename,))
 
-    ## compare the image quality to test images
-    real_image = label[0:max_samples,:,:,:]
-    #l1
-    l1_quality  = tf.reduce_mean(tf.reduce_sum(tf.abs(clipped_image - real_image), [1,2,3]), name='l1_quality')
-    # l1_quality = td.sess.run(l1_quality)
+#     ## compare the image quality to test images
+#     real_image = label[0:max_samples,:,:,:]
+#     #l1
+#     l1_quality  = tf.reduce_mean(tf.reduce_sum(tf.abs(clipped_image - real_image), [1,2,3]), name='l1_quality')
+#     # l1_quality = td.sess.run(l1_quality)
 
-    #MSE
-    mse_quality  = tf.reduce_mean(tf.reduce_sum(tf.square(clipped_image - real_image), [1,2,3]), name='mse_quality')
-    # mse_quality = td.sess.run(mse_quality)
+#     #MSE
+#     mse_quality  = tf.reduce_mean(tf.reduce_sum(tf.square(clipped_image - real_image), [1,2,3]), name='mse_quality')
+#     # mse_quality = td.sess.run(mse_quality)
     
-    # print("   L1: %.2f, MSE: %.2f " % (l1_quality, mse_quality))
+#     # print("   L1: %.2f, MSE: %.2f " % (l1_quality, mse_quality))
 
-    l1_tensor = tf.summary.scalar('L1_loss', l1_quality)
-    mse_tensor = tf.summary.scalar('Mean_square_error', mse_quality)
+#     l1_tensor = tf.summary.scalar('L1_loss', l1_quality)
+#     mse_tensor = tf.summary.scalar('Mean_square_error', mse_quality)
 
-    summaries = tf.summary.merge([l1_tensor,mse_tensor])
-    batch_summaries = td.sess.run(summaries)
-    td.summary_writer.add_summary(batch_summaries, batch)
+#     summaries = tf.summary.merge([l1_tensor,mse_tensor])
+#     batch_summaries = td.sess.run(summaries)
+#     td.summary_writer.add_summary(batch_summaries, batch)
 
 def _save_checkpoint(train_data, batch):
     td = train_data
@@ -123,8 +123,11 @@ def train_model(train_data):
         if batch % FLAGS.summary_period == 0:
             # Show progress with test features
             feed_dict = {td.gene_minput: test_feature}
-            gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)
-            _summarize_progress(td, test_feature, test_label, gene_output, batch, 'out')
+            # gene_output = td.sess.run(td.gene_moutput, feed_dict=feed_dict)
+            _summarize_progress(td, test_feature, test_label, batch, 'out', max_samples=td.max_samples)
+            test_merged = tf.summary.merged_all(key='test_scalars')
+            test_summaries = td.sess.run(test_merged, feed_dict=feed_dict)
+            tf.summary.add_summary(test_summaries)
         
         if batch % 10 == 0:
 
