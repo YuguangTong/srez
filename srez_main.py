@@ -204,6 +204,7 @@ def _train():
             srez_model.create_model(sess, noisy_train_features, train_labels)
   
     # >>> add summary scalars for test set
+    max_samples = 10 # output 10 test images
     gene_outuput_clipped = tf.maximum(tf.minimum(gene_moutput, 1.0), 0.)
     l1_quality  = tf.reduce_sum(tf.abs(gene_output_clipped - test_labels), [1,2,3])
     l1_quality = tf.reduce_mean(l1_quality[:max_samples])
