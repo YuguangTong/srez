@@ -218,7 +218,8 @@ class Model:
 
         # Residual block
         for _ in range(num_layers):
-            self.add_batch_norm()
+            if FLAGS.gen_norm:
+                self.add_batch_norm()
             self.add_relu()
             self.add_conv2d(num_units, mapsize=mapsize, stride=1, stddev_factor=stddev_factor)
 
@@ -243,11 +244,12 @@ class Model:
         bypass = self.get_output()
 
         # Bottleneck residual block
-        self.add_batch_norm()
+        if FLAGS.gen_norm:
+            self.add_batch_norm()
         self.add_relu()
         self.add_conv2d(num_units//4, mapsize=1,       stride=1,      stddev_factor=2.)
-
-        self.add_batch_norm()
+        if FLAGS.gen_norm:
+            self.add_batch_norm()
         self.add_relu()
         if transpose:
             self.add_conv2d_transpose(num_units//4,
@@ -259,8 +261,8 @@ class Model:
                             mapsize=mapsize,
                             stride=1,
                             stddev_factor=2.)
-
-        self.add_batch_norm()
+        if FLAGS.gen_norm:
+            self.add_batch_norm()
         self.add_relu()
         self.add_conv2d(num_units,    mapsize=1,       stride=1,      stddev_factor=2.)
 
@@ -397,15 +399,16 @@ def _generator_model(sess, features, labels, channels):
             # Spatial upscale (see http://distill.pub/2016/deconv-checkerboard/)
             # and transposed convolution
             model.add_upscale()
-            
-            model.add_batch_norm()
+            if FLAGS.gen_norm:
+                model.add_batch_norm()
             model.add_relu()
             model.add_conv2d_transpose(nunits, mapsize=mapsize, stride=1, stddev_factor=1.)
 
     elif FLAGS.gen_architect == 'deconv':
         for ru in range(len(res_units)-1):
             nunits  = res_units[ru]
-            model.add_batch_norm()
+            if FLAGS.gen_norm:
+                model.add_batch_norm()
             model.add_relu()
             model.add_conv2d_transpose(nunits, mapsize=mapsize, stride=2, stddev_factor=1.)
 
@@ -506,11 +509,10 @@ def create_generator_loss(disc_output, gene_output, features):
     downscaled = _downscale(gene_output, K)
     
     gene_l1_loss  = tf.reduce_mean(tf.abs(downscaled - features), name='gene_l1_loss')
-
-    gene_loss     = tf.add((1.0 - FLAGS.gene_l1_factor) * (gene_ce_loss),
-                           FLAGS.gene_l1_factor * gene_l1_loss, name='gene_loss')
-    # gene_loss = - gene_ce_loss
-
+    
+    gene_loss = tf.add((1.0 - FLAGS.gene_l1_factor) * (gene_ce_loss),
+        FLAGS.gene_l1_factor * gene_l1_loss, name='gene_loss')
+        
     return gene_loss
 
 def create_discriminator_loss(disc_real_output, disc_fake_output):

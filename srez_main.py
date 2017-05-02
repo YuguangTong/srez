@@ -43,7 +43,7 @@ tf.app.flags.DEFINE_float('learning_beta1', 0.5,
 tf.app.flags.DEFINE_float('learning_beta2', 0.9,
                           "Beta1 parameter used for AdamOptimizer")
 
-tf.app.flags.DEFINE_float('learning_rate_start', 0.00020,
+tf.app.flags.DEFINE_float('learning_rate_start', 0.0001,
                           "Starting learning rate used for AdamOptimizer")
 
 tf.app.flags.DEFINE_float('train_noise', 0.03,
@@ -73,26 +73,30 @@ tf.app.flags.DEFINE_string('train_dir', 'train',
 tf.app.flags.DEFINE_integer('train_time', 200,
                             "Time in minutes to train the model")
 
-tf.app.flags.DEFINE_string('optimizer', 'rmsprop',
+tf.app.flags.DEFINE_string('optimizer', 'adam',
                             "Which optimizer to use: [rmsprop | adam]?")
 
-tf.app.flags.DEFINE_string('loss_func', 'wgangp',
+tf.app.flags.DEFINE_string('loss_func', 'dcgan',
                             "Which loss function to use: [dcgan | wgan | wgangp]?")
 
 tf.app.flags.DEFINE_integer('weigh_clip', 0,
                             "Perform weigh clipping(1) or not(0)?")
 
-tf.app.flags.DEFINE_string('critic_norm', 'layer',
-                            "Normalization in the discriminator: [batch|layer]?")
+tf.app.flags.DEFINE_string('critic_norm', 'batch',
+                            "Normalization in the discriminator: [batch|layer|none]?")
 
 tf.app.flags.DEFINE_integer('output_image', 0,
                             "Present images from all methods (0) or only present images from the generator (1)")
 
-tf.app.flags.DEFINE_integer('LAMBDA', 10,
+tf.app.flags.DEFINE_integer('LAMBDA', 0,
                             "Gradient penalty lambda hyperparameter in improved WGAN")
 
 tf.app.flags.DEFINE_string('gen_architect', 'resnet',
                             "Artchitect of the generator: [resnet | deconv]")
+
+tf.app.flags.DEFINE_integer('gen_norm', 1, "Normalization in the generator or not")
+
+tf.app.flags.DEFINE_string('input', 'noise', "Input image: [scaled | noise]")
 
 def prepare_dirs(delete_train_dir=False):
     # Create checkpoint dir (do not delete anything)
@@ -181,21 +185,21 @@ def _train():
     # Separate training and test sets
     # train_filenames = all_filenames[:-FLAGS.test_vectors]
     # test_filenames  = all_filenames[-FLAGS.test_vectors:]
-    determined_test = [73883-1, 36510-1, 132301-1, 57264-1, 152931-1, 93861-1,
+    determined_test = [73883-1, 110251-1, 36510-1, 132301-1, 57264-1, 152931-1, 93861-1,
     124938-1, 79512-1, 106152-1, 127384-1, 134028-1, 67874-1,
-    10613-1, 110251-1, 198694-1, 100990-1]
+    10613-1, 198694-1, 100990-1]
     all_filenames = np.array(all_filenames)
     train_filenames = list(np.delete(all_filenames, determined_test))
 #     test_filenames = list(all_filenames[determined_test])
-
-    # TBD: Maybe download dataset here
-
     # Setup async input queues
     train_features, train_labels = srez_input.setup_inputs(sess, train_filenames)
-#     test_features,  test_labels  = srez_input.setup_inputs(sess, test_filenames)
+    # test_features,  test_labels  = srez_input.setup_inputs(sess, test_filenames)
     test_labels = np.load('testset_label.npy')
-    test_features = tf.image.resize_image(test_labels, [16, 16])
-    test_features = sess.run(test_features)
+    test_labels = tf.convert_to_tensor(test_labels, dtype = tf.float32)
+    if FLAGS.input == 'scaled':
+        test_features = tf.image.resize_area(test_labels, [16, 16])
+    elif FLAGS.input == 'noise':
+        test_features = tf.random_uniform(shape=[16, 16, 16, 3],minval= -1., maxval=1.)
 
     # Add some noise during training (think denoising autoencoders)
     noise_level = FLAGS.train_noise
